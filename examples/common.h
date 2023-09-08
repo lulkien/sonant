@@ -12,6 +12,8 @@
 
 #define NUM_PROCESS_THREAD    6
 
+#define MAX_F_SINT16    32767.0f
+
 #define TINY_MODEL      "/home/ark/Working/Qt/sonant/models/ggml-tiny.en.bin"
 #define BASE_MODEL      "/home/ark/Working/Qt/sonant/models/ggml-base.en.bin"
 #define MEDIUM_MODEL    ""
