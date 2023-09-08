@@ -35,7 +35,8 @@ int main()
     if (startRecord() != 0)
     {
         printf("Fail to record.\n");
-        return 1;
+        abort();
+        return -1;
     }
 #ifdef SAVE_TO_FILE
     printf("---------------------------------------------------------------\n");
@@ -93,6 +94,7 @@ void handleSignal(int signal)
 {
     if (signal == SIGINT) {
         printf("Terminated.\n");
+        abort();
     }
 }
 
@@ -187,7 +189,7 @@ int speechToTextFromFile(const char *audioPath)
 {
     printf("SPEAK TO TEXT FROM FILE\n");
     printf("Init whisper context.\n");
-    const char* modelPath = BASE_MODEL;
+    const char* modelPath = TINY_MODEL;
     struct whisper_context* ctx = whisper_init_from_file(modelPath);
     if (!ctx) {
         printf("Failed to initialize Whisper context.\n");
@@ -212,7 +214,7 @@ int speechToTextFromFile(const char *audioPath)
 
     // Define parameters for transcription
     struct whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
-    params.n_threads = 16;
+    params.n_threads = NUM_PROCESS_THREAD;
     params.print_special = false; // Print special tokens like <SOT>, <EOT>, etc.
     params.print_progress = false; // Print progress information
 
@@ -240,7 +242,7 @@ int speechToTextFromBuffer()
 {
     printf(">>> SPEAK TO TEXT FROM BUFFER\n");
     printf("Init whisper context.\n");
-    const char* modelPath = BASE_MODEL;
+    const char* modelPath = TINY_MODEL;
     struct whisper_context* ctx = whisper_init_from_file(modelPath);
     if (!ctx) {
         printf("Failed to initialize Whisper context.\n");

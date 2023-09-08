@@ -1,3 +1,5 @@
+TARGET = test-whisper
+
 QT -= gui
 
 CONFIG += c++11 console
@@ -5,7 +7,7 @@ CONFIG -= app_bundle
 
 #DEFINES += USING_SDL2
 #DEFINES += USING_SNDFILE
-#DEFINES += SAVE_TO_FILE
+DEFINES += SAVE_TO_FILE
 
 # You can make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.

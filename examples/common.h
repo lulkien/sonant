@@ -10,12 +10,14 @@
 
 #define RECORD_DURATION 5
 
-#define TINY_MODEL      "/storage/kienlh4ivi/MyProject/sonant/vr-model/ggml-tiny.en.bin"
-#define BASE_MODEL      "/storage/kienlh4ivi/MyProject/sonant/vr-model/ggml-base.en.bin"
-#define MEDIUM_MODEL    "/storage/kienlh4ivi/MyProject/sonant/vr-model/ggml-medium.en.bin"
+#define NUM_PROCESS_THREAD    6
 
-#define AUDIO_RECORD    "/home/kienlh4ivi/working/MyProject/sonant/examples/test-whisper/build/record.wav"
-#define SAMPLE_RECORD   "/storage/kienlh4ivi/MyProject/sonant/samples/sample1.wav"
+#define TINY_MODEL      "/home/ark/Working/Qt/sonant/models/ggml-tiny.en.bin"
+#define BASE_MODEL      "/home/ark/Working/Qt/sonant/models/ggml-base.en.bin"
+#define MEDIUM_MODEL    ""
+
+#define AUDIO_RECORD    "/home/ark/Working/Qt/sonant/examples/test-whisper/build/record.wav"
+#define SAMPLE_RECORD   "/home/ark/Working/Qt/sonant/samples/sample1.wav"
 
 #define DBG_LOG         qDebug().noquote() << "[" << __PRETTY_FUNCTION__ << "]"
 
