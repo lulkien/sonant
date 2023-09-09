@@ -14,7 +14,7 @@ public:
 
     void initialize();
     void startRecording();
-    QString getTranscription();
+    QStringList getTranscription();
 
 private:
     QScopedPointer<SonantManagerPrivate> d_ptr;

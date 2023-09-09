@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include <SDL2/SDL.h>
+#include <whisper.h>
 
 class SonantWorker : public QObject
 {
@@ -11,12 +12,15 @@ public:
     explicit SonantWorker(QObject *parent = nullptr);
     ~SonantWorker();
     void initialize();
+    void setWhisperModel(QString modelPath);
+    QStringList getLatestTranscription() const;
 
 public slots:
     int startRecord();
 
-private:
+private slots:
     int writeRecordToFile(QString filePath);
+    int processSpeech();
 
 signals:
     void recordCompleted();
@@ -33,9 +37,14 @@ private:
     bool m_recording;
     bool m_processing;
 
+    // SDL
     SDL_AudioDeviceID m_audioDevice;
+    SDL_AudioSpec m_recordSpecs;
 
     // Whisper
+    whisper_context *m_whisperCtx;
+    QString m_whisperModel;
+    QStringList m_transcription;
 };
 
 #endif // SONANTWORKER_H
