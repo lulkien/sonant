@@ -18,9 +18,6 @@ public:
     void startRecording();
     QStringList getTranscription();
 
-public slots:
-    void debugFunction();
-
 signals:
     void transcriptionReady();
 

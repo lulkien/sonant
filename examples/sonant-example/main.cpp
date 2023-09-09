@@ -2,11 +2,14 @@
 #include <signal.h>
 #include "sonantmanager.h"
 
+QCoreApplication *app;
+
 void handleSignal(int signal)
 {
     if (signal == SIGINT) {
         printf("Terminated.\n");
-        abort();
+//        abort();
+        app->quit();
     }
 }
 
@@ -16,6 +19,7 @@ int main(int argc, char *argv[])
     signal(SIGINT, handleSignal);
 
     QCoreApplication a(argc, argv);
+    app = &a;
 
     SonantManager sonant;
     sonant.initialize();

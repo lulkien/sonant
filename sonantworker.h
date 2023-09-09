@@ -16,9 +16,10 @@ public:
     QStringList getLatestTranscription() const;
 
 public slots:
-    int startRecord();
+    void onRequestRecord();
 
 private slots:
+    int startRecord();
     int writeRecordToFile(QString filePath);
     int processSpeech();
 

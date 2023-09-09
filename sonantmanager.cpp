@@ -8,12 +8,11 @@ SonantManager::SonantManager()
 {
     DBG_LOG;
     connect(d_ptr.get(), &SonantManagerPrivate::transcriptionReady, this, &SonantManager::transcriptionReady);
-    connect(d_ptr.get(), &SonantManagerPrivate::transcriptionReady, this, &SonantManager::debugFunction);
 }
 
 SonantManager::~SonantManager()
 {
-
+    DBG_LOG;
 }
 
 void SonantManager::initialize()
@@ -25,7 +24,7 @@ void SonantManager::initialize()
 
 void SonantManager::startRecording()
 {
-    DBG_LOG;
+    DBG_LOG << QThread::currentThread()->currentThreadId();
     Q_D(SonantManager);
     d->record();
 }
@@ -37,33 +36,46 @@ QStringList SonantManager::getTranscription()
     return d->getTranscription();
 }
 
-void SonantManager::debugFunction()
-{
-    Q_D(SonantManager);
-    INF_LOG << "Transcription:" << d->getTranscription();
-}
-
 SonantManagerPrivate::SonantManagerPrivate(SonantManager *q_ptr)
 {
     DBG_LOG;
     this->q_ptr = q_ptr;
     this->initialized = false;
-    this->voiceRecognizeThread = nullptr;
+    this->sonantWorkThread = nullptr;
+    this->sonantWorker = nullptr;
 }
 
 SonantManagerPrivate::~SonantManagerPrivate()
 {
     DBG_LOG;
+    this->sonantWorkThread->quit();
+    this->sonantWorkThread->wait();
+
+    if (this->sonantWorker)
+        delete this->sonantWorker;
+
+    if (this->sonantWorkThread)
+        delete this->sonantWorkThread;
 }
 
 void SonantManagerPrivate::initialize()
 {
     DBG_LOG;
-//    this->voiceRecognizeThread = new QThread();
-//    this->voiceRecognizeThread->start();
+    this->sonantWorkThread = new QThread();
+    this->sonantWorkThread->moveToThread(sonantWorkThread);
 
-    voiceRecognizeWorker.initialize();
-    connect(&voiceRecognizeWorker, &SonantWorker::transcriptionReady, this, &SonantManagerPrivate::getTranscriptionFromWorker);
+    this->sonantWorker = new SonantWorker();
+    this->sonantWorker->initialize();
+    INF_LOG << "Worker thread ID:" << sonantWorkThread->currentThreadId();
+
+    // connect signals/slots
+    connect(sonantWorker, &SonantWorker::transcriptionReady,
+            this, &SonantManagerPrivate::getTranscriptionFromWorker, Qt::QueuedConnection);
+    connect(this, &SonantManagerPrivate::requestRecord,
+            sonantWorker, &::SonantWorker::onRequestRecord, Qt::QueuedConnection);
+
+    // Start thread
+    this->sonantWorkThread->start();
 
     // done
     this->initialized = true;
@@ -71,12 +83,12 @@ void SonantManagerPrivate::initialize()
 
 void SonantManagerPrivate::record()
 {
-    DBG_LOG;
+    DBG_LOG << QThread::currentThread()->currentThreadId();
     if (!this->initialized) {
         ERR_LOG << "Manager is not initialized";
         return;
     }
-    voiceRecognizeWorker.startRecord();
+    emit requestRecord();
 }
 
 QStringList SonantManagerPrivate::getTranscription() const
@@ -87,12 +99,22 @@ QStringList SonantManagerPrivate::getTranscription() const
         return QStringList();
     }
 
-    return transcription;
+    return this->transcription;
+}
+
+void SonantManagerPrivate::testFunction()
+{
+    for (int i = 0; i < this->transcription.count(); i++) {
+        INF_LOG << "Segment" << i << ":" << this->transcription.at(i);
+    }
 }
 
 void SonantManagerPrivate::getTranscriptionFromWorker()
 {
-    transcription = voiceRecognizeWorker.getLatestTranscription();
+    this->transcription = sonantWorker->getLatestTranscription();
+#ifdef DUMMY
+    testFunction();
+#endif
     emit transcriptionReady();
 }
 

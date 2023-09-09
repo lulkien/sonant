@@ -20,18 +20,21 @@ public:
     void record();
     QStringList getTranscription() const;
 
-    bool initialized;
-    SonantWorker voiceRecognizeWorker;
-    QThread *voiceRecognizeThread;
-    QStringList transcription;
-
     // private class
     SonantManager *q_ptr;
 
+private:
+    bool initialized;
+    SonantWorker *sonantWorker;
+    QThread *sonantWorkThread;
+    QStringList transcription;
+
 private slots:
+    void testFunction();
     void getTranscriptionFromWorker();
 
 signals:
+    void requestRecord();
     void transcriptionReady();
 };
 

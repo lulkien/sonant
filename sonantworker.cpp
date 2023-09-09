@@ -1,7 +1,8 @@
 #include "sonantworker.h"
 #include "common.h"
-#include <QDebug>
 #include <sndfile.h>
+#include <QDebug>
+#include <QThread>
 
 #define RECORD_SAMPLE_RATE      16000
 #define RECORD_CHANNELS         1
@@ -68,6 +69,7 @@ SonantWorker::SonantWorker(QObject *parent)
     , m_whisperModel { QString() }
     , m_transcription { QStringList() }
 {
+
 }
 
 SonantWorker::~SonantWorker()
@@ -96,7 +98,7 @@ void SonantWorker::initialize()
     m_recordSpecs.userdata = this;
 
     if (m_whisperCtx == nullptr) {
-        INF_LOG << "Initializing whisper from model:" << m_whisperModel;
+        INF_LOG << "Initializing whisper from model";
         m_whisperCtx = whisper_init_from_file(DEFAULT_WHISPER_MODEL);
         if (!m_whisperCtx) {
             ERR_LOG << "Fail to init whisper context.";
@@ -142,8 +144,23 @@ QStringList SonantWorker::getLatestTranscription() const
     return m_transcription;
 }
 
+void SonantWorker::onRequestRecord()
+{
+    DBG_LOG << QThread::currentThread()->currentThreadId();
+    if (!m_initialized) {
+        ERR_LOG << "Worker was not initialized.";
+        return;
+    }
+    if (m_recording || m_processing) {
+        ERR_LOG << "Busy.";
+        return;
+    }
+    startRecord();
+}
+
 int SonantWorker::startRecord()
 {
+    DBG_LOG << QThread::currentThread()->currentThreadId();
     if (!m_initialized) {
         ERR_LOG << "Worker was not initialized.";
         return 1;
