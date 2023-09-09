@@ -185,7 +185,7 @@ int SonantWorker::startRecord()
     DBG_LOG << "recordedSampleCount:" << recordedSampleCount;
     DBG_LOG << "recordBufferSize" << recordBufferSize;
 
-    writeRecordToFile(QLatin1String("record.wav"));
+//    writeRecordToFile(QLatin1String("record.wav"));
     processSpeech();
     return 0;
 }

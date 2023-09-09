@@ -7,6 +7,8 @@ SonantManager::SonantManager()
     : d_ptr { new SonantManagerPrivate(this) }
 {
     DBG_LOG;
+    connect(d_ptr.get(), &SonantManagerPrivate::transcriptionReady, this, &SonantManager::transcriptionReady);
+    connect(d_ptr.get(), &SonantManagerPrivate::transcriptionReady, this, &SonantManager::debugFunction);
 }
 
 SonantManager::~SonantManager()
@@ -35,6 +37,12 @@ QStringList SonantManager::getTranscription()
     return d->getTranscription();
 }
 
+void SonantManager::debugFunction()
+{
+    Q_D(SonantManager);
+    INF_LOG << "Transcription:" << d->getTranscription();
+}
+
 SonantManagerPrivate::SonantManagerPrivate(SonantManager *q_ptr)
 {
     DBG_LOG;
@@ -55,6 +63,7 @@ void SonantManagerPrivate::initialize()
 //    this->voiceRecognizeThread->start();
 
     voiceRecognizeWorker.initialize();
+    connect(&voiceRecognizeWorker, &SonantWorker::transcriptionReady, this, &SonantManagerPrivate::getTranscriptionFromWorker);
 
     // done
     this->initialized = true;
@@ -78,6 +87,12 @@ QStringList SonantManagerPrivate::getTranscription() const
         return QStringList();
     }
 
-    return QStringList();
+    return transcription;
+}
+
+void SonantManagerPrivate::getTranscriptionFromWorker()
+{
+    transcription = voiceRecognizeWorker.getLatestTranscription();
+    emit transcriptionReady();
 }
 

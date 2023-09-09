@@ -20,7 +20,6 @@ public:
     void record();
     QStringList getTranscription() const;
 
-public:
     bool initialized;
     SonantWorker voiceRecognizeWorker;
     QThread *voiceRecognizeThread;
@@ -28,6 +27,12 @@ public:
 
     // private class
     SonantManager *q_ptr;
+
+private slots:
+    void getTranscriptionFromWorker();
+
+signals:
+    void transcriptionReady();
 };
 
 
