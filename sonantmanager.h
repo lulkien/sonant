@@ -11,6 +11,7 @@ class Q_DECL_EXPORT SonantManager
 public:
     SonantManager();
     virtual ~SonantManager();
+
     void initialize();
     void startRecording();
     QString getTranscription();

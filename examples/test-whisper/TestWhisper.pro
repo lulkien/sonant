@@ -7,9 +7,9 @@ CONFIG -= app_bundle
 
 #DEFINES += USING_SDL2
 #DEFINES += USING_SNDFILE
-#DEFINES += READ_FROM_FILE
+DEFINES += READ_FROM_FILE
 DEFINES += READ_FROM_BUFFER
-#DEFINES += AUDIO_DEBUG
+DEFINES += AUDIO_DEBUG
 
 # You can make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.

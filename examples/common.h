@@ -8,7 +8,7 @@
 #define BUFFER_SIZE 4096
 #define THRESHOLD 1000
 
-#define RECORD_DURATION 5
+#define RECORD_DURATION 2
 
 #define NUM_PROCESS_THREAD    6
 
@@ -22,5 +22,8 @@
 #define SAMPLE_RECORD   "/home/ark/Working/Qt/sonant/samples/sample1.wav"
 
 #define DBG_LOG         qDebug().noquote() << "[" << __PRETTY_FUNCTION__ << "]"
+#define INF_LOG         qInfo().noquote() << "[" << __PRETTY_FUNCTION__ << "]"
+#define WRN_LOG         qWarning().noquote() << "[" << __PRETTY_FUNCTION__ << "]"
+#define ERR_LOG         qCritical().noquote() << "[" << __PRETTY_FUNCTION__ << "]"
 
 #endif // COMMON_H

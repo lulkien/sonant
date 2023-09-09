@@ -2,6 +2,7 @@
 #define SONANTWORKER_H
 
 #include <QObject>
+#include <SDL2/SDL.h>
 
 class SonantWorker : public QObject
 {
@@ -9,9 +10,32 @@ class SonantWorker : public QObject
 public:
     explicit SonantWorker(QObject *parent = nullptr);
     ~SonantWorker();
+    void initialize();
+
+public slots:
+    int startRecord();
+
+private:
+    int writeRecordToFile(QString filePath);
 
 signals:
+    void recordCompleted();
+    void transcriptionReady();
 
+public:
+    // SDL
+    Sint16 *recordedBuffer;
+    Uint32 recordedSampleCount;
+    Uint32 recordBufferSize;
+
+private:
+    bool m_initialized;
+    bool m_recording;
+    bool m_processing;
+
+    SDL_AudioDeviceID m_audioDevice;
+
+    // Whisper
 };
 
 #endif // SONANTWORKER_H

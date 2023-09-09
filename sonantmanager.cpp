@@ -55,6 +55,9 @@ void SonantManagerPrivate::initialize()
     this->voiceRecognizeThread = new QThread();
     this->voiceRecognizeThread->start();
 
+    voiceRecognizeWorker.initialize();
+
+    // done
     this->initialized = true;
 }
 
@@ -70,7 +73,7 @@ void SonantManagerPrivate::record()
     if (!this->initialized) {
         fatality("Manager is not initialized");
     }
-    DBG_LOG << "OK";
+    voiceRecognizeWorker.startRecord();
 }
 
 QString SonantManagerPrivate::transcription()

@@ -160,7 +160,7 @@ int writeRecordToFile()
     SF_INFO sfinfo;
     sfinfo.samplerate = SAMPLE_RATE;
     sfinfo.channels = CHANNELS;
-    sfinfo.format = SF_FORMAT_WAV | SF_FORMAT_PCM_16;
+
 
     SNDFILE* sndfile = sf_open("record.wav", SFM_WRITE, &sfinfo);
     if (!sndfile) {
