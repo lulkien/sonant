@@ -7,7 +7,7 @@
 #include <QThread>
 #include <QString>
 
-class Q_DECL_HIDDEN SonantManagerPrivate : public QObject
+class SonantManagerPrivate : public QObject
 {
     Q_OBJECT
     Q_DECLARE_PUBLIC(SonantManager)

@@ -7,9 +7,7 @@
 #define CHANNELS 1
 #define BUFFER_SIZE 4096
 #define THRESHOLD 1000
-
 #define RECORD_DURATION 2
-
 #define NUM_PROCESS_THREAD    6
 
 #define MAX_F_SINT16    32767.0f

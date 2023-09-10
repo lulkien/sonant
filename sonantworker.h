@@ -20,7 +20,6 @@ public slots:
 
 private slots:
     int startRecord();
-    int writeRecordToFile(QString filePath);
     int processSpeech();
 
 signals:
