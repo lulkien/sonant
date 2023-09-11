@@ -23,7 +23,7 @@ int main(int argc, char *argv[])
 
     SonantManager sonant;
     sonant.initialize();
-    sonant.startRecording();
+    sonant.record();
 
     return a.exec();
 }

@@ -14,11 +14,13 @@ public:
     SonantManager();
     virtual ~SonantManager();
 
+    void setModel(const QString &modelPath);
     void initialize();
-    void startRecording();
-    QStringList getTranscription();
+    void record();
+    QStringList transcription();
 
 signals:
+    void recordCompleted();
     void transcriptionReady();
 
 private:

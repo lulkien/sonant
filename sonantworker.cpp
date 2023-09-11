@@ -1,6 +1,5 @@
 #include "sonantworker.h"
-#include <QDebug>
-#include <QThread>
+#include <QtCore/qdebug.h>
 
 #define RECORD_SAMPLE_RATE      16000
 #define RECORD_CHANNELS         1
@@ -9,9 +8,9 @@
 
 #define DEFAULT_WHISPER_MODEL   "models/ggml-tiny.en.bin"
 #define MAX_SINT16_TO_FLOAT     32768.0f
-#define PROCESS_COUNT           6
+#define WHISPER_THREAD_COUNT    6
 
-#define RECORD_DURATION         2
+#define DUMMY_RECORD_DURATION   2
 
 void audio_callback(void* userdata, Uint8* stream, int len)
 {
@@ -74,11 +73,42 @@ SonantWorker::SonantWorker(QObject *parent)
 
 SonantWorker::~SonantWorker()
 {
-    qDebug() << "Close device and exit SDL";
+    qInfo() << "Close device and exit SDL";
     if (m_initialized) {
         SDL_Quit();
         whisper_free(m_whisperCtx);
     }
+}
+
+QStringList SonantWorker::getLatestTranscription() const
+{
+    return m_transcription;
+}
+
+void SonantWorker::onRequestChangeModel(const QString &modelPath)
+{
+    QMutexLocker locker(&m_lock);
+    setModel(modelPath);
+}
+
+void SonantWorker::onRequestInitialize()
+{
+    QMutexLocker locker(&m_lock);
+    initialize();
+}
+
+void SonantWorker::onRequestRecord()
+{
+    QMutexLocker locker(&m_lock);
+    if (!m_initialized) {
+        qCritical() << "Worker was not initialized.";
+        return;
+    }
+    if (m_recording || m_processing) {
+        qCritical() << "Busy.";
+        return;
+    }
+    this->record();
 }
 
 void SonantWorker::initialize()
@@ -89,7 +119,7 @@ void SonantWorker::initialize()
         return;
     }
 
-    qInfo() << "Setup record specs";
+    qDebug() << "Setup record specs";
     m_recordSpecs.freq = RECORD_SAMPLE_RATE;
     m_recordSpecs.format = RECORD_SAMPLE_FORMAT;
     m_recordSpecs.channels = RECORD_CHANNELS;
@@ -104,12 +134,15 @@ void SonantWorker::initialize()
             qCritical() << "Fail to init whisper context.";
             return;
         }
+        m_whisperModel = DEFAULT_WHISPER_MODEL;
+    } else {
+        qWarning() << "Context has been init_ed from file:" << m_whisperModel;
     }
 
     m_initialized = true;
 }
 
-void SonantWorker::setWhisperModel(QString modelPath)
+void SonantWorker::setModel(const QString &modelPath)
 {
     if (m_recording || m_processing) {
         qCritical() << "Busy. Cannot set whisper model right now.";
@@ -120,9 +153,8 @@ void SonantWorker::setWhisperModel(QString modelPath)
         return;
 
     whisper_context *oldContext = m_whisperCtx;
-    m_whisperModel = modelPath;
-    qInfo() << "Initializing whisper from model:" << m_whisperModel;
-    m_whisperCtx = whisper_init_from_file(m_whisperModel.toStdString().c_str());
+    qInfo() << "Initializing whisper from model:" << modelPath;
+    m_whisperCtx = whisper_init_from_file(modelPath.toStdString().c_str());
     if (!m_whisperCtx) {
         qWarning() << "Fail to init whisper context. Fallback to old context";
         if (oldContext != nullptr) {
@@ -130,37 +162,17 @@ void SonantWorker::setWhisperModel(QString modelPath)
         } else {
             qCritical() << "Old context is nullptr";
         }
-    }
-    else {
+    } else {
         // If init OK -> delete the old one
+        m_whisperModel = modelPath;
         if (oldContext != nullptr) {
             whisper_free(oldContext);
         }
     }
 }
 
-QStringList SonantWorker::getLatestTranscription() const
+int SonantWorker::record()
 {
-    return m_transcription;
-}
-
-void SonantWorker::onRequestRecord()
-{
-    qDebug() << QThread::currentThread()->currentThreadId();
-    if (!m_initialized) {
-        qCritical() << "Worker was not initialized.";
-        return;
-    }
-    if (m_recording || m_processing) {
-        qCritical() << "Busy.";
-        return;
-    }
-    startRecord();
-}
-
-int SonantWorker::startRecord()
-{
-    qDebug() << QThread::currentThread()->currentThreadId();
     if (!m_initialized) {
         qCritical() << "Worker was not initialized.";
         return 1;
@@ -170,7 +182,7 @@ int SonantWorker::startRecord()
         return 2;
     }
 
-    qInfo() << "Prepare memory";
+    qDebug() << "Prepare memory";
     recordedBuffer = new Sint16[RECORD_BUFFER_SIZE]{0};
     if (recordedBuffer == nullptr) {
         qCritical() << "Fail to allocate memory.";
@@ -178,7 +190,7 @@ int SonantWorker::startRecord()
     }
     recordBufferSize = RECORD_BUFFER_SIZE;
 
-    qInfo() << "Open audio device";
+    qDebug() << "Open audio device";
 
     m_audioDevice = SDL_OpenAudioDevice(nullptr, 1, &m_recordSpecs, nullptr, 0);
     if (m_audioDevice == 0) {
@@ -186,13 +198,13 @@ int SonantWorker::startRecord()
         return 4;
     }
 
-    qInfo() << "Start recording";
+    qDebug() << "Start recording";
     m_recording = true;
     SDL_PauseAudioDevice(m_audioDevice, 0);
 
-    SDL_Delay(RECORD_DURATION * 1000);
+    SDL_Delay(DUMMY_RECORD_DURATION * 1000);
 
-    qInfo() << "Stop recording";
+    qDebug() << "Stop recording";
     SDL_PauseAudioDevice(m_audioDevice, 1);
     m_recording = false;
 
@@ -232,7 +244,7 @@ int SonantWorker::processSpeech()
 
     // Define parameters for transcription
     struct whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
-    params.n_threads = PROCESS_COUNT;
+    params.n_threads = WHISPER_THREAD_COUNT;
     params.print_special = false; // Print special tokens like <SOT>, <EOT>, etc.
     params.print_progress = false; // Print progress information
 
@@ -243,6 +255,10 @@ int SonantWorker::processSpeech()
         return 2;
     }
 
+    // Clear old transcription
+    m_transcription.clear();
+
+    // Get new transcription
     int segmentsCount = whisper_full_n_segments(m_whisperCtx);
     for (int i = 0; i < segmentsCount; i++) {
         m_transcription << QString(whisper_full_get_segment_text(m_whisperCtx, i));
@@ -251,6 +267,6 @@ int SonantWorker::processSpeech()
     delete[] audioData;
     m_processing = false;
     emit transcriptionReady();
-    qInfo() << "Done";
+    qDebug() << "Done";
     return 0;
 }

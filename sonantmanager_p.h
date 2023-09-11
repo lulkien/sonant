@@ -3,39 +3,41 @@
 
 #include "sonantmanager.h"
 #include "sonantworker.h"
-#include <QObject>
-#include <QThread>
-#include <QString>
+#include <QtCore/qobject.h>
+#include <QtCore/qthread.h>
+#include <QtCore/qstringlist.h>
 
 class SonantManagerPrivate : public QObject
 {
     Q_OBJECT
     Q_DECLARE_PUBLIC(SonantManager)
 public:
-    SonantManagerPrivate(SonantManager *q_ptr);
+    SonantManagerPrivate(SonantManager *_ptr);
     ~SonantManagerPrivate();
 
+    // private implement
+    void setModel(const QString &modelPath);
     void initialize();
-
     void record();
-    QStringList getTranscription() const;
+    QStringList transcription() const;
 
     // private class
-    SonantManager *q_ptr;
+    SonantManager   *q_ptr;
 
 private:
-    bool initialized;
-    SonantWorker *sonantWorker;
-    QThread *sonantWorkThread;
-    QStringList transcription;
+    bool            m_initialized;
+    SonantWorker    *m_sonantWorker;
+    QThread         m_sonantWorkThread;
+    QStringList     m_transcription;
 
 private slots:
-    void testFunction();
-    void getTranscriptionFromWorker();
+    void onRecordCompleted();
+    void onTranscriptionReady();
 
 signals:
+    void requestChangeModel(const QString &modelPath);
+    void requestWorkerInitialize();
     void requestRecord();
-    void transcriptionReady();
 };
 
 

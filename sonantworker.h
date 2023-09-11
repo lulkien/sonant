@@ -1,9 +1,10 @@
 #ifndef SONANTWORKER_H
 #define SONANTWORKER_H
 
-#include <QObject>
 #include <SDL2/SDL.h>
 #include <whisper.h>
+#include <QtCore/qobject.h>
+#include <QtCore/qmutex.h>
 
 class SonantWorker : public QObject
 {
@@ -11,15 +12,17 @@ class SonantWorker : public QObject
 public:
     explicit SonantWorker(QObject *parent = nullptr);
     ~SonantWorker();
-    void initialize();
-    void setWhisperModel(QString modelPath);
     QStringList getLatestTranscription() const;
 
 public slots:
+    void onRequestChangeModel(const QString &modelPath);
+    void onRequestInitialize();
     void onRequestRecord();
 
 private slots:
-    int startRecord();
+    void initialize();
+    void setModel(const QString &modelPath);
+    int record();
     int processSpeech();
 
 signals:
@@ -36,6 +39,9 @@ private:
     bool m_initialized;
     bool m_recording;
     bool m_processing;
+
+    // Threading
+    QMutex m_lock;
 
     // SDL
     SDL_AudioDeviceID m_audioDevice;

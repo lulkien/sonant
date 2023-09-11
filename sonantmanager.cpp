@@ -1,111 +1,113 @@
 #include "sonantmanager.h"
 #include "sonantmanager_p.h"
-#include <QDebug>
+#include <QtCore/qdebug.h>
 
 SonantManager::SonantManager()
     : d_ptr { new SonantManagerPrivate(this) }
-{
-    qDebug();
-    connect(d_ptr.get(), &SonantManagerPrivate::transcriptionReady, this, &SonantManager::transcriptionReady);
-}
+{ }
 
 SonantManager::~SonantManager()
+{ }
+
+void SonantManager::setModel(const QString &modelPath)
 {
-    qDebug();
+    Q_D(SonantManager);
+    d->setModel(modelPath);
 }
 
 void SonantManager::initialize()
 {
-    qDebug();
     Q_D(SonantManager);
     d->initialize();
 }
 
-void SonantManager::startRecording()
+void SonantManager::record()
 {
-    qDebug() << QThread::currentThread()->currentThreadId();
     Q_D(SonantManager);
     d->record();
 }
 
-QStringList SonantManager::getTranscription()
+QStringList SonantManager::transcription()
 {
-    qDebug();
     Q_D(SonantManager);
-    return d->getTranscription();
+    return d->transcription();
 }
 
-SonantManagerPrivate::SonantManagerPrivate(SonantManager *q_ptr)
+SonantManagerPrivate::SonantManagerPrivate(SonantManager *_ptr)
+    : q_ptr { _ptr }
 {
-    this->q_ptr = q_ptr;
-    this->initialized = false;
-    this->sonantWorkThread = nullptr;
-    this->sonantWorker = nullptr;
+    m_initialized = false;
+    m_sonantWorker = new SonantWorker();
+    m_sonantWorker->moveToThread(&m_sonantWorkThread);
+
+    // Start thread
+    m_sonantWorkThread.start();
 }
 
 SonantManagerPrivate::~SonantManagerPrivate()
 {
-    this->sonantWorkThread->quit();
-    this->sonantWorkThread->wait();
+    m_sonantWorkThread.quit();
+    m_sonantWorkThread.wait();
 
-    if (this->sonantWorker)
-        delete this->sonantWorker;
+    if (m_sonantWorker)
+        delete m_sonantWorker;
+}
 
-    if (this->sonantWorkThread)
-        delete this->sonantWorkThread;
+void SonantManagerPrivate::setModel(const QString &modelPath)
+{
+    emit requestChangeModel(modelPath);
 }
 
 void SonantManagerPrivate::initialize()
 {
-    this->sonantWorkThread = new QThread();
-    this->sonantWorkThread->moveToThread(sonantWorkThread);
+    // Worker -> Manager
+    connect(m_sonantWorker, &SonantWorker::recordCompleted,
+            this, &SonantManagerPrivate::onRecordCompleted, Qt::QueuedConnection);
+    connect(m_sonantWorker, &SonantWorker::transcriptionReady,
+            this, &SonantManagerPrivate::onTranscriptionReady, Qt::QueuedConnection);
 
-    this->sonantWorker = new SonantWorker();
-    this->sonantWorker->initialize();
-    qInfo() << "Worker thread ID:" << sonantWorkThread->currentThreadId();
-
-    // connect signals/slots
-    connect(sonantWorker, &SonantWorker::transcriptionReady,
-            this, &SonantManagerPrivate::getTranscriptionFromWorker, Qt::QueuedConnection);
+    // Manager -> Worker
+    connect(this, &SonantManagerPrivate::requestChangeModel,
+            m_sonantWorker, &SonantWorker::onRequestChangeModel, Qt::QueuedConnection);
+    connect(this, &SonantManagerPrivate::requestWorkerInitialize,
+            m_sonantWorker, &SonantWorker::onRequestInitialize, Qt::QueuedConnection);
     connect(this, &SonantManagerPrivate::requestRecord,
-            sonantWorker, &::SonantWorker::onRequestRecord, Qt::QueuedConnection);
+            m_sonantWorker, &SonantWorker::onRequestRecord, Qt::QueuedConnection);
 
-    // Start thread
-    this->sonantWorkThread->start();
-
+//    m_sonantWorker->initialize();
+    emit requestWorkerInitialize();
     // done
-    this->initialized = true;
+    m_initialized = true;
 }
 
 void SonantManagerPrivate::record()
 {
-    qDebug() << QThread::currentThread()->currentThreadId();
-    if (!this->initialized) {
+    if (!this->m_initialized) {
         qCritical() << "Manager is not initialized";
         return;
     }
     emit requestRecord();
 }
 
-QStringList SonantManagerPrivate::getTranscription() const
+QStringList SonantManagerPrivate::transcription() const
 {
-    if (!this->initialized) {
+    if (!this->m_initialized) {
         qCritical() << "Manager is not initialized";
         return QStringList();
     }
-    return this->transcription;
+    return m_transcription;
 }
 
-void SonantManagerPrivate::testFunction()
+void SonantManagerPrivate::onRecordCompleted()
 {
-    for (int i = 0; i < this->transcription.count(); i++) {
-        qInfo() << "Segment" << i << ":" << this->transcription.at(i);
-    }
+    // If the record can be completed, it must be initialized
+    emit q_ptr->recordCompleted();
 }
 
-void SonantManagerPrivate::getTranscriptionFromWorker()
+void SonantManagerPrivate::onTranscriptionReady()
 {
-    this->transcription = sonantWorker->getLatestTranscription();
-    emit transcriptionReady();
+    // If the transcription can be ready, it must be initialized
+    m_transcription = m_sonantWorker->getLatestTranscription();
+    emit q_ptr->transcriptionReady();
 }
 
