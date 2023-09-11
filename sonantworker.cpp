@@ -10,7 +10,7 @@
 #define MAX_SINT16_TO_FLOAT     32768.0f
 #define WHISPER_THREAD_COUNT    6
 
-#define DUMMY_RECORD_DURATION   2
+#define DUMMY_RECORD_DURATION   5
 
 void audio_callback(void* userdata, Uint8* stream, int len)
 {
@@ -152,9 +152,13 @@ void SonantWorker::setModel(const QString &modelPath)
     if (m_whisperCtx != nullptr && modelPath == m_whisperModel)
         return;
 
-    whisper_context *oldContext = m_whisperCtx;
     qInfo() << "Initializing whisper from model:" << modelPath;
+
+    // Backup old model
+    whisper_context *oldContext = m_whisperCtx;
     m_whisperCtx = whisper_init_from_file(modelPath.toStdString().c_str());
+
+    // verify
     if (!m_whisperCtx) {
         qWarning() << "Fail to init whisper context. Fallback to old context";
         if (oldContext != nullptr) {

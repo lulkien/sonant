@@ -40,7 +40,22 @@ SonantManagerPrivate::SonantManagerPrivate(SonantManager *_ptr)
     m_sonantWorker = new SonantWorker();
     m_sonantWorker->moveToThread(&m_sonantWorkThread);
 
-    // Start thread
+    // Connect signals/slots
+    // Worker -> Manager
+    connect(m_sonantWorker, &SonantWorker::recordCompleted,
+            this, &SonantManagerPrivate::onRecordCompleted, Qt::QueuedConnection);
+    connect(m_sonantWorker, &SonantWorker::transcriptionReady,
+            this, &SonantManagerPrivate::onTranscriptionReady, Qt::QueuedConnection);
+
+    // Manager -> Worker
+    connect(this, &SonantManagerPrivate::requestChangeModel,
+            m_sonantWorker, &SonantWorker::onRequestChangeModel, Qt::QueuedConnection);
+    connect(this, &SonantManagerPrivate::requestWorkerInitialize,
+            m_sonantWorker, &SonantWorker::onRequestInitialize, Qt::QueuedConnection);
+    connect(this, &SonantManagerPrivate::requestRecord,
+            m_sonantWorker, &SonantWorker::onRequestRecord, Qt::QueuedConnection);
+
+    // Start work thread
     m_sonantWorkThread.start();
 }
 
@@ -60,20 +75,7 @@ void SonantManagerPrivate::setModel(const QString &modelPath)
 
 void SonantManagerPrivate::initialize()
 {
-    // Worker -> Manager
-    connect(m_sonantWorker, &SonantWorker::recordCompleted,
-            this, &SonantManagerPrivate::onRecordCompleted, Qt::QueuedConnection);
-    connect(m_sonantWorker, &SonantWorker::transcriptionReady,
-            this, &SonantManagerPrivate::onTranscriptionReady, Qt::QueuedConnection);
-
-    // Manager -> Worker
-    connect(this, &SonantManagerPrivate::requestChangeModel,
-            m_sonantWorker, &SonantWorker::onRequestChangeModel, Qt::QueuedConnection);
-    connect(this, &SonantManagerPrivate::requestWorkerInitialize,
-            m_sonantWorker, &SonantWorker::onRequestInitialize, Qt::QueuedConnection);
-    connect(this, &SonantManagerPrivate::requestRecord,
-            m_sonantWorker, &SonantWorker::onRequestRecord, Qt::QueuedConnection);
-
+\
 //    m_sonantWorker->initialize();
     emit requestWorkerInitialize();
     // done

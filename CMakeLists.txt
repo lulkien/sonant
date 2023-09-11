@@ -5,10 +5,10 @@ set(CMAKE_CXX_STANDARD 11)
 
 # Find the Qt5 package
 find_package(Qt5 COMPONENTS Core REQUIRED)
+find_package(SDL2 REQUIRED)
 
 # Include directories for required libraries (libwhisper and libSDL2)
 include_directories(/usr/local/include)
-include_directories(/usr/include/SDL2)
 
 # Source files
 set(SOURCE_FILES
@@ -30,8 +30,8 @@ add_library(sonant SHARED ${SOURCE_FILES} ${QT_MOC_HEADERS})
 # Link the required libraries
 target_link_libraries(sonant
     /usr/local/lib/libwhisper.so
-    /usr/lib/libSDL2.so
     Qt5::Core
+    SDL2::SDL2
 )
 
 # Include directories for header files
