@@ -4,7 +4,6 @@
 #include <SDL2/SDL_stdinc.h>
 #include <chrono>
 #include <cstdlib>
-#include <exception>
 #include <iostream>
 #include <mutex>
 #include <ostream>
@@ -40,6 +39,8 @@ void SDLCALL audioCallback(void* userdata, Uint8* stream, int len) {
         std::lock_guard<std::mutex> lock(_ptr->m_bufferMutex);
         _ptr->m_recording.store(true);
         _ptr->m_audioBuffer.insert(_ptr->m_audioBuffer.end(), stream, stream + len);
+    } else {
+        _ptr->m_recording.store(false);
     }
 }
 
@@ -113,16 +114,14 @@ bool SonantImpl::startRecorder() {
     return true;
 }
 
-bool SonantImpl::stopRecorder() {
+void SonantImpl::stopRecorder() {
     if (!m_listening.load()) {
-        std::cout << "Recording was not running.\n";
-        return false;
+        return;
     }
 
-    std::cout << "Stop\n";
     m_listening.store(false);
 
-    return true;
+    return;
 }
 
 void SonantImpl::setCallbackTranscriptionReady(std::function<void(std::string)> callback) {

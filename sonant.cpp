@@ -29,8 +29,8 @@ bool Sonant::startRecorder() {
     return pImpl->startRecorder();
 }
 
-bool Sonant::stopRecorder() {
-    return pImpl->stopRecorder();
+void Sonant::stopRecorder() {
+    pImpl->stopRecorder();
 }
 
 void Sonant::setTranscriptionCallback(std::function<void(std::string)> callback) {

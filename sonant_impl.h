@@ -23,7 +23,7 @@ public:
     std::string getModel() const;
 
     bool startRecorder();
-    bool stopRecorder();
+    void stopRecorder();
 
     void setCallbackTranscriptionReady(std::function<void(std::string)> callback);
 

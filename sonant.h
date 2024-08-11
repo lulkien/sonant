@@ -15,7 +15,7 @@ public:
 
     bool startRecorder();
 
-    bool stopRecorder();
+    void stopRecorder();
 
     void setTranscriptionCallback(std::function<void(std::string)> callback);
 
