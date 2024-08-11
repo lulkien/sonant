@@ -1,48 +1,28 @@
 cmake_minimum_required(VERSION 3.12)
-project(SonantLibrary)
 
-set(CMAKE_CXX_STANDARD 11)
+project(Sonant)
 
-# Find the Qt5 package
-find_package(Qt5 COMPONENTS Core REQUIRED)
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
+
+# Find the SDL2 package
 find_package(SDL2 REQUIRED)
 
-# Include directories for required libraries (libwhisper and libSDL2)
+# Include directories for required libraries (libwhisper)
 include_directories(/usr/local/include)
 
 # Source files
-set(SOURCE_FILES
-    sonantmanager.cpp
-    sonantworker.cpp
-)
+set(SOURCE_FILES sonant.cpp sonant_impl.cpp)
 
-# Add MOC step for Qt-specific headers
-set(QT_HEADERS
-    sonantmanager.h
-    sonantmanager_p.h
-    sonantworker.h
-)
-QT5_WRAP_CPP(QT_MOC_HEADERS ${QT_HEADERS})
-
-# Create the shared library
-add_library(sonant SHARED ${SOURCE_FILES} ${QT_MOC_HEADERS})
+# Create share library
+add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES})
 
 # Link the required libraries
-target_link_libraries(sonant
-    /usr/local/lib/libwhisper.so
-    Qt5::Core
-    SDL2::SDL2
-)
+target_link_libraries(${PROJECT_NAME} /usr/local/lib/libwhisper.so SDL2::SDL2)
 
 # Include directories for header files
-target_include_directories(sonant PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 # Install the library and header file
-install(TARGETS sonant
-    LIBRARY DESTINATION /usr/local/lib
-)
-
-install(FILES sonantmanager.h
-    DESTINATION /usr/local/include
-)
-
+install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION /usr/local/lib)
+install(FILES sonant.h DESTINATION /usr/local/include)
