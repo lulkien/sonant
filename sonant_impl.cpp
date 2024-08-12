@@ -157,8 +157,6 @@ void SonantImpl::recordAudio() {
     using std::chrono::milliseconds;
     using std::this_thread::sleep_for;
 
-    auto lastInputTime = steady_clock::now();
-
     while (true) {
         if (!m_SDLInitOk) {
             UNREACHABLE();
@@ -166,37 +164,31 @@ void SonantImpl::recordAudio() {
         }
 
         if (m_terminate.load()) {
+            MSG_LOG << "Terminate record thread" << std::endl;
             break;
         }
 
-        if (m_listening.load()) {
-            auto now = steady_clock::now();
-            auto lastInputDeltaTime = duration_cast<seconds>(now - m_lastInputTime);
+        if (m_listening.load() && m_recording.load()) {
+            steady_clock::time_point now = steady_clock::now();
+            seconds deltaTimeSinceLastInput = duration_cast<seconds>(now - m_lastInputTime);
 
-            if (m_recording.load()) {
-                if (lastInputDeltaTime < m_stopRecordDelay) {
-                    // Keep recording
-                    m_recording.store(true);
-                }
-                else {
-                    // Stop record
-                    m_recording.store(false);
-                    MSG_LOG << "Stop recorder after 1 seconds." << std::endl;
-
-                    {
-                        std::lock_guard<std::mutex> lock(m_bufferMutex);
-                        MSG_LOG << "Pass buffer to whisper. Buffer size = "
-                                << m_recordBuffer.size()
-                                << std::endl;
-                        m_recordBuffer.clear();
-                    }
-                }
+            if (deltaTimeSinceLastInput < m_stopRecordDelay) {
+                // Keep recording
+                m_recording.store(true);
+                MSG_LOG << "Recording..." << std::endl;
             }
-
-            if (m_recording.load()) {
-                std::cout << "Recording..." << std::endl;
-            } else {
-                std::cout << "Listening..." << std::endl;
+            else {
+                // Stop record
+                m_recording.store(false);
+                MSG_LOG << "Stop recorder after 1 seconds." << std::endl;
+                {
+                    std::lock_guard<std::mutex> lock(m_bufferMutex);
+                    MSG_LOG << "Pass buffer to whisper. Buffer size = "
+                            << m_recordBuffer.size()
+                            << std::endl;
+                    m_recordBuffer.clear();
+                }
+                MSG_LOG << "Listening..." << std::endl;
             }
         }
 
@@ -204,13 +196,8 @@ void SonantImpl::recordAudio() {
         sleep_for(milliseconds(100));
     }
 
-    if (m_terminate.load()) {
-        MSG_LOG << "Terminate record thread" << std::endl;
-    } else {
-        UNREACHABLE();
-    }
+    MSG_LOG << "Record worker END." << std::endl;
 }
-
 
 bool SonantImpl::reloadModel() {
     return true;
