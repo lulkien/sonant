@@ -2,6 +2,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
+#include <ostream>
 #include <sonant.h>
 #include <thread>
 #include <unistd.h> // For sleep
@@ -23,16 +24,16 @@ void handleSignal(int signal)
 int main() {
     signal(SIGINT, handleSignal);
 
-    sonant.setModel("a");
+    if (!sonant.initialize("/home/ark/Downloads/whisper.cpp-1.6.2/models/ggml-base.en.bin")) {
+        return 0;
+    }
 
-    sonant.initialize();
     sonant.startRecorder();
 
     while (!is_stop) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     std::cout << "Stop" << std::endl;
-    /*sonant.startRecorder();*/
     /*std::this_thread::sleep_for(std::chrono::milliseconds(25000));*/
     /*sonant.stopRecorder();*/
 

@@ -20,4 +20,6 @@
     << __PRETTY_FUNCTION__  \
     << " "
 
+#define LOG_ENDL std::endl
+
 #endif // !SONANT_UTILS_H
