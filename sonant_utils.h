@@ -3,23 +3,19 @@
 
 #include <iostream>
 
-#define UNREACHABLE()                                 \
-    std::cerr                                         \
-    << "Warning: Reached unexpected code section in " \
-    << __FILE__                                       \
-    << " at line " << __LINE__                        \
-    << std::endl
-
-#define MSG_LOG             \
-    std::cout               \
-    << __PRETTY_FUNCTION__  \
-    << " "
-
-#define ERR_LOG             \
-    std::cerr               \
-    << __PRETTY_FUNCTION__  \
-    << " "
-
+#define LOG_TAG "[SONANT]"
 #define LOG_ENDL std::endl
+
+#define UNREACHABLE()                                     \
+    std::cerr                                             \
+        << LOG_TAG                                        \
+        << "Warning: Reached unexpected code section in " \
+        << __FILE__                                       \
+        << " at line " << __LINE__                        \
+        << LOG_ENDL
+
+#define MSG_LOG std::cout << LOG_TAG << " "
+#define ERR_LOG std::cerr << LOG_TAG << " "
+
 
 #endif // !SONANT_UTILS_H

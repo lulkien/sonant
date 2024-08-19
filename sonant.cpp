@@ -1,37 +1,25 @@
 #include "sonant.h"
 #include "sonant_impl.h"
-#include <cmath>
-#include <string>
-#include <functional>
 
 Sonant::Sonant()
     : pImpl { std::make_unique<SonantImpl>() }
-{
-
-}
+{ }
 
 Sonant::~Sonant() {
     stopRecorder();
 }
 
 bool Sonant::initialize(const std::string& initModelPath) {
-    return pImpl->initialize(initModelPath);
+    SonantParams params;
+    return pImpl->initialize(initModelPath, params);
 }
 
-bool Sonant::setModel(const std::string& modelPath) {
-    return pImpl->setModel(modelPath);
+bool Sonant::initialize(const std::string& initModelPath, const SonantParams& params) {
+    return pImpl->initialize(initModelPath, params);
 }
 
-std::string Sonant::getModel() const {
-    return pImpl->getModel();
-}
-
-void Sonant::setRecordThreshold(float_t threshold) {
-    pImpl->setRecordThreshold(threshold);
-}
-
-float_t Sonant::getRecordThreshold() const {
-    return pImpl->getRecordThreshold();
+bool Sonant::requestChangeModel(const std::string& modelPath) {
+    return pImpl->requestChangeModel(modelPath);
 }
 
 bool Sonant::startRecorder() {

@@ -4,6 +4,7 @@
 #include <iostream>
 #include <ostream>
 #include <sonant.h>
+#include <string>
 #include <thread>
 #include <unistd.h> // For sleep
 #include <signal.h>
@@ -21,6 +22,10 @@ void handleSignal(int signal)
     }
 }
 
+void printTranscript(std::string transcript) {
+    std::cout << transcript << std::endl;
+}
+
 int main() {
     signal(SIGINT, handleSignal);
 
@@ -29,6 +34,7 @@ int main() {
     }
 
     sonant.startRecorder();
+    sonant.setTranscriptionCallback(printTranscript);
 
     while (!is_stop) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));

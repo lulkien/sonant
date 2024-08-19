@@ -1,8 +1,42 @@
-#include <cmath>
-#include <cstdint>
+#ifndef SONANT_H
+#define SONANT_H
+
 #include <memory>
 #include <string>
 #include <functional>
+
+/**
+ * @brief Sonant config parameters
+ */
+struct SonantParams {
+    /**
+     * @brief Record threshold
+     *
+     * Record frame is valid and will be append
+     * to record buffer if it has at least 1 sample
+     * with absolute value above this threshold.
+     * Default: 0.25
+     */
+    float recordThreshold = 0.25f;
+
+    /**
+     * @brief Pause recorder timer
+     *
+     * Recorder keeps record for a while after
+     * last valid input (millisecond).
+     * Default: 1500ms
+     */
+    uint64_t pauseRecorderDelay = 1500;
+
+    /**
+     * @brief Whisper API thread count
+     *
+     * Number of thread Whisper API use for
+     * voice processing.
+     * Default: 4
+     */
+    uint16_t sonantThreadCount = 4;
+};
 
 class SonantImpl;
 class Sonant {
@@ -18,18 +52,29 @@ public:
     virtual ~Sonant();
 
     /**
-     * @brief Initialize Sonant object
+     * @brief Init Sonant object with default parameters
      *
      * This function must be called before using any other APIs
-     * provided by this object. It initiates SDL2 and Whisper.cpp
+     * provided by this object. It initiates ALSA and Whisper.cpp
      * to ensures all of the APIs are ready to use.
      *
-     * @return Result of initialize process.
+     * @return bool Result of initialize process.
      */
     bool initialize(const std::string& initModelPath);
 
     /**
-     * @brief Set Whisper model path
+     * @brief Init Sonant object with custom parameters
+     *
+     * This function must be called before using any other APIs
+     * provided by this object. It initiates ALSA and Whisper.cpp
+     * to ensures all of the APIs are ready to use.
+     *
+     * @return bool Result of initialize process.
+     */
+    bool initialize(const std::string& initModelPath, const SonantParams &params);
+
+    /**
+     * @brief Change Whisper model path
      *
      * This function will try to set the model path for Whisper.
      * If it fails for any reasons, the old model will be used,
@@ -38,39 +83,7 @@ public:
      * @param modelPath Whisper's model path.
      * @return Result of the request to change model.
      */
-    bool setModel(const std::string& modelPath);
-
-    /**
-     * @brief Get current model path is being used.
-     *
-     * This function will return the current model path
-     * used by Whisper.
-     *
-     * @return Current model path.
-     */
-    std::string getModel() const;
-
-    /**
-     * @brief Set record threshold
-     *
-     * This function will set a threshold for the recorder.
-     * If a record buffer has at least 1 value above this,
-     * this buffer will be insert into final record.
-     * Range: (0, 1)
-     *
-     * @param threshold Threshold for recorder.
-     */
-    void setRecordThreshold(float_t threshold);
-
-    /**
-     * @brief Get record threshold
-     *
-     * This function will return current threshold value
-     * of the recorder.
-     *
-     * @return Threshold of the recorder.
-     */
-    float_t getRecordThreshold() const;
+    bool requestChangeModel(const std::string& modelPath);
 
     /**
      * @brief Start the recorder
@@ -115,3 +128,5 @@ public:
 private:
     std::unique_ptr<SonantImpl> pImpl;
 };
+
+#endif // !SONANT_H
