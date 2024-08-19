@@ -8,7 +8,7 @@ CONFIG -= app_bundle
 #DEFINES += USING_SDL2
 #DEFINES += USING_SNDFILE
 DEFINES += READ_FROM_FILE
-DEFINES += READ_FROM_BUFFER
+# DEFINES += READ_FROM_BUFFER
 DEFINES += AUDIO_DEBUG
 
 # You can make your code fail to compile if it uses deprecated APIs.
@@ -19,7 +19,7 @@ INCLUDEPATH += \
     $${PWD}/..
 
 SOURCES += \
-        source.cpp
+        main.cpp
 
 LIBS += -L/usr/lib/x86_64-linux-gnu -lsndfile -lSDL2
 LIBS += -L/usr/local/lib -lwhisper

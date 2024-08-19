@@ -45,11 +45,11 @@ int main()
         return 1;
     }
     printf("\n");
-    if (speechToTextFromFile(AUDIO_RECORD) != 0)
-    {
-        printf("Fail to get text from speech.\n");
-        return 1;
-    }
+    // if (speechToTextFromFile(AUDIO_RECORD) != 0)
+    // {
+    //     printf("Fail to get text from speech.\n");
+    //     return 1;
+    // }
 #endif
 
 #ifdef READ_FROM_BUFFER
@@ -160,6 +160,7 @@ int writeRecordToFile()
     SF_INFO sfinfo;
     sfinfo.samplerate = SAMPLE_RATE;
     sfinfo.channels = CHANNELS;
+    sfinfo.format = SF_FORMAT_WAV | SF_FORMAT_PCM_16;
 
 
     SNDFILE* sndfile = sf_open("record.wav", SFM_WRITE, &sfinfo);
@@ -182,7 +183,8 @@ int speechToTextFromFile(const char *audioPath)
     printf("--------------------------------------- SPEECH TO TEXT FROM FILE ---------------------------------------\n");
     printf(">>> Init whisper context.\n");
     const char* modelPath = TINY_MODEL;
-    struct whisper_context* ctx = whisper_init_from_file(modelPath);
+    struct whisper_context_params wparams = whisper_context_default_params();
+    struct whisper_context* ctx = whisper_init_from_file_with_params(modelPath, wparams);
     if (!ctx) {
         printf(">>> >>> Failed to initialize Whisper context.\n");
         return 1;
