@@ -1,2 +1,2 @@
 # sonant
-Qt library for voice capturing and speech-to-text using SDL2 and whisper cpp
+A library for recording and do speech-to-text. Powered by Whisper.cpp
