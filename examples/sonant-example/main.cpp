@@ -1,29 +1,50 @@
-#include <QCoreApplication>
+#include <atomic>
+#include <chrono>
+#include <cstdlib>
+#include <iostream>
+#include <ostream>
+#include <sonant.h>
+#include <string>
+#include <thread>
+#include <unistd.h> // For sleep
 #include <signal.h>
-#include "sonantmanager.h"
 
-QCoreApplication *app;
+Sonant sonant;
+std::atomic<bool> is_stop { false };
 
 void handleSignal(int signal)
 {
     if (signal == SIGINT) {
-        printf("Terminated.\n");
-//        abort();
-        app->quit();
+        std::cout << "\nTerminated\n";
+        sonant.stopRecorder();
+        sonant.terminate();
+        is_stop = true;
     }
 }
 
-int main(int argc, char *argv[])
-{
-    // Register the SIGINT signal handler
+void printTranscript(std::string transcript) {
+    std::cout << transcript << std::endl;
+}
+
+int main() {
     signal(SIGINT, handleSignal);
 
-    QCoreApplication a(argc, argv);
-    app = &a;
+    // Use script download-ggml-model.sh in Whisper.cpp project to download Whisper model
+    if (!sonant.initialize("ggml-base.en.bin")) {
+        return 0;
+    }
 
-    SonantManager sonant;
-    sonant.initialize();
-    sonant.record();
+    sonant.startRecorder();
+    sonant.setTranscriptionCallback(printTranscript);
 
-    return a.exec();
+    while (!is_stop) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    std::cout << "Stop" << std::endl;
+    /*std::this_thread::sleep_for(std::chrono::milliseconds(25000));*/
+    /*sonant.stopRecorder();*/
+
+
+    return 0;
 }
+
