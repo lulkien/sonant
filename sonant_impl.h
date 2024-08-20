@@ -19,7 +19,7 @@ public:
     virtual ~SonantImpl();
 
     bool initialize(const std::string& modelPath, const SonantParams& params);
-    bool requestChangeModel(const std::string& modelPath);
+    bool requestChangeModel(const std::string& newModelPath);
 
     bool startRecorder();
     void stopRecorder();
@@ -53,10 +53,10 @@ private:
 
     // ---------------------------- Whisper ----------------------------
     bool                              m_whisperInitOk = false;
-    std::atomic<bool>                 m_whisperProcessing { false };
     whisper_context*                  m_whisperCtx = nullptr;
     whisper_full_params               m_whisperParams;
     std::string                       m_whisperModelPath;
+    std::mutex                        m_whisperMutex;
 
     std::function<void(std::string)>  m_callbackTranscriptionReady;
 };

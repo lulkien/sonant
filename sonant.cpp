@@ -18,8 +18,8 @@ bool Sonant::initialize(const std::string& initModelPath, const SonantParams& pa
     return pImpl->initialize(initModelPath, params);
 }
 
-bool Sonant::requestChangeModel(const std::string& modelPath) {
-    return pImpl->requestChangeModel(modelPath);
+bool Sonant::requestChangeModel(const std::string& newModelPath) {
+    return pImpl->requestChangeModel(newModelPath);
 }
 
 bool Sonant::startRecorder() {

@@ -83,7 +83,7 @@ public:
      * @param modelPath Whisper's model path.
      * @return Result of the request to change model.
      */
-    bool requestChangeModel(const std::string& modelPath);
+    bool requestChangeModel(const std::string& newModelPath);
 
     /**
      * @brief Start the recorder

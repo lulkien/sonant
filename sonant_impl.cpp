@@ -6,6 +6,7 @@
 #include <alsa/pcm.h>
 #include <cmath>
 #include <iostream>
+#include <mutex>
 
 #define ENABLE_WHISPER
 // #define DEBUG_MODE
@@ -43,7 +44,7 @@ bool SonantImpl::initialize(const std::string& modelPath, const SonantParams& pa
     unsigned int channels = SONANT_RECORD_CHANNELS;
 
     if ((alsaError = snd_pcm_open(&m_alsaCapture, "default", SND_PCM_STREAM_CAPTURE, 0)) < 0 ) {
-        ERR_LOG << "Cannot open audio device: " << snd_strerror(alsaError) << std::endl;
+        ERR_LOG << "Cannot open audio device: " << snd_strerror(alsaError) << LOG_ENDL;
         return false;
     }
 
@@ -68,7 +69,7 @@ bool SonantImpl::initialize(const std::string& modelPath, const SonantParams& pa
 
 #ifdef ENABLE_WHISPER
     // Init whisper
-    struct whisper_context_params model_params = whisper_context_default_params();
+    whisper_context_params model_params = whisper_context_default_params();
     m_whisperCtx = whisper_init_from_file_with_params(modelPath.c_str(), model_params);
 
     // Config parameters for whisper
@@ -79,7 +80,7 @@ bool SonantImpl::initialize(const std::string& modelPath, const SonantParams& pa
     m_whisperParams.single_segment = true;
 
     if (nullptr == m_whisperCtx) {
-        ERR_LOG << "Failed to init whisper context from model: " << modelPath << std::endl;
+        ERR_LOG << "Failed to init whisper context from model: " << modelPath << LOG_ENDL;
         return false;
     } else {
         m_whisperModelPath = modelPath;
@@ -90,28 +91,24 @@ bool SonantImpl::initialize(const std::string& modelPath, const SonantParams& pa
     return true;
 }
 
-bool SonantImpl::requestChangeModel(const std::string& modelPath) {
-    if (modelPath != m_whisperModelPath) {
-        if (reloadModel(modelPath)) {
-            m_whisperModelPath = modelPath;
-            return true;
-        } else {
-            return false;
-        }
+bool SonantImpl::requestChangeModel(const std::string& newModelPath) {
+    if (newModelPath == m_whisperModelPath) {
+        return true;
     }
-    return true;
+
+    return reloadModel(newModelPath);
 }
 
 bool SonantImpl::startRecorder() {
 #ifdef ENABLE_WHISPER
     if (m_whisperModelPath.empty()) {
-        ERR_LOG << "Model path was not set." << std::endl;
+        ERR_LOG << "Model path was not set." << LOG_ENDL;
         return false;
     }
 #endif
 
     if (!m_alsaInitOk) {
-        ERR_LOG << "ASLA was init correctly." << std::endl;
+        ERR_LOG << "ASLA was init correctly." << LOG_ENDL;
         return false;
     }
 
@@ -151,7 +148,7 @@ void SonantImpl::doRecordAudio() {
 
         if (m_terminate.load()) {
 #ifdef DEBUG_MODE
-            MSG_LOG << "Terminate record thread" << std::endl;
+            MSG_LOG << "Terminate record thread" << LOG_ENDL;
 #endif // DEBUG_MODE
             break;
         }
@@ -165,7 +162,7 @@ void SonantImpl::doRecordAudio() {
     }
 
 #ifdef DEBUG_MODE
-    MSG_LOG << "Record worker END." << std::endl;
+    MSG_LOG << "Record worker END." << LOG_ENDL;
 #endif // DEBUG_MODE
 }
 
@@ -184,7 +181,7 @@ void SonantImpl::alsaCaptureHandle(std::vector<float>& buffer) {
         frames = snd_pcm_recover(m_alsaCapture, frames, 0);
     }
     if (frames < 0) {
-        ERR_LOG << "Failed to read PCM data: " << strerror(frames) << std::endl;
+        ERR_LOG << "Failed to read PCM data: " << strerror(frames) << LOG_ENDL;
         return;
     }
 
@@ -213,7 +210,14 @@ void SonantImpl::alsaCaptureHandle(std::vector<float>& buffer) {
 }
 
 void SonantImpl::processRecordBuffer() {
-    std::lock_guard<std::mutex> lock(m_bufferMutex);
+    std::unique_lock<std::mutex> record_buffer_lock(m_bufferMutex, std::defer_lock);
+    std::unique_lock<std::mutex> whisper_context_lock(m_whisperMutex, std::defer_lock);
+
+    if (!record_buffer_lock.try_lock()) {
+        ERR_LOG << "Failed to acquire buffer lock. Process buffer operation aborted." << LOG_ENDL;
+        return;
+    }
+
     if (m_recordBuffer.empty()) {
         return;
     }
@@ -221,12 +225,15 @@ void SonantImpl::processRecordBuffer() {
 #ifdef DEBUG_MODE
     MSG_LOG << "Pass buffer to whisper. Buffer size = "
             << m_recordBuffer.size()
-            << std::endl;
+            << LOG_ENDL;
 #endif // DEBUG_MODE
 
 #ifdef ENABLE_WHISPER
     do {
-        m_whisperProcessing.store(true);
+        if (!whisper_context_lock.try_lock()) {
+            ERR_LOG << "Failed to acquire whisper context lock. Process buffer operation aborted." << LOG_ENDL;
+            return;
+        }
 
         int result = whisper_full(
                          m_whisperCtx,
@@ -237,7 +244,7 @@ void SonantImpl::processRecordBuffer() {
         m_recordBuffer.clear();
 
         if (result != 0) {
-            ERR_LOG << "Failed to transcript audio" << std::endl;
+            ERR_LOG << "Failed to transcript audio." << LOG_ENDL;
             break;
         }
 
@@ -248,19 +255,38 @@ void SonantImpl::processRecordBuffer() {
         }
 
         m_callbackTranscriptionReady(transcript);
-
-        m_whisperProcessing.store(false);
     } while (false);
 
 #endif // ENABLE_WHISPER
 
-
 #ifdef DEBUG_MODE
-    MSG_LOG << "END" << std::endl;
+    MSG_LOG << "END" << LOG_ENDL;
 #endif // DEBUG_MODE
 }
 
 bool SonantImpl::reloadModel(const std::string& newModelPath) {
-    // TODO: Implement reload model logic
+    std::unique_lock<std::mutex> whisper_context_lock(m_whisperMutex);
+
+    if (!whisper_context_lock.try_lock()) {
+        ERR_LOG << "Failed to acquire whisper context lock. Reload model operation aborted." << LOG_ENDL;
+        return false;
+    }
+
+    whisper_context* old_whisper_context = m_whisperCtx;
+
+    whisper_context_params model_params = whisper_context_default_params();
+    m_whisperCtx = whisper_init_from_file_with_params(newModelPath.c_str(), model_params);
+
+    if (nullptr == m_whisperCtx) {
+        ERR_LOG << "Failed to create whisper context from new model: "
+                << newModelPath
+                << ". Fallback to old context."
+                << LOG_ENDL;
+        m_whisperCtx = old_whisper_context;
+        return false;
+    }
+
+    m_whisperModelPath = newModelPath;
+    whisper_free(old_whisper_context);
     return true;
 }
