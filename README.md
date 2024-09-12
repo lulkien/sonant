@@ -1,8 +1,6 @@
 # Sonant
 
-Sonant is a simple C++ wrapper that facilitates recording audio from the default microphone using ALSA and transcribing it into text using the [Whisper.cpp](https://github.com/ggerganov/whisper.cpp) library. 
-
-This library abstracts the complexities of integrating ALSA for audio capture and Whisper for transcription, providing an easy-to-use API for developers.
+Sonant is a simple C++ wrapper for recording audio with ALSA and transcribing with Whisper.cpp library.
 
 ## Dependencies
 - ALSA
