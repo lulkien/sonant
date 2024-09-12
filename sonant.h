@@ -1,9 +1,9 @@
 #ifndef SONANT_H
 #define SONANT_H
 
+#include <functional>
 #include <memory>
 #include <string>
-#include <functional>
 
 /**
  * @brief Sonant config parameters
@@ -60,7 +60,7 @@ public:
      *
      * @return bool Result of initialize process.
      */
-    bool initialize(const std::string& initModelPath);
+    bool initialize(const std::string &initModelPath);
 
     /**
      * @brief Init Sonant object with custom parameters
@@ -71,7 +71,8 @@ public:
      *
      * @return bool Result of initialize process.
      */
-    bool initialize(const std::string& initModelPath, const SonantParams &params);
+    bool initialize(const std::string &initModelPath,
+                    const SonantParams &params);
 
     /**
      * @brief Change Whisper model path
@@ -83,7 +84,7 @@ public:
      * @param modelPath Whisper's model path.
      * @return Result of the request to change model.
      */
-    bool requestChangeModel(const std::string& newModelPath);
+    bool requestChangeModel(const std::string &newModelPath);
 
     /**
      * @brief Start the recorder

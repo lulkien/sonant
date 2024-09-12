@@ -11,18 +11,19 @@
 #define ENABLE_WHISPER
 // #define DEBUG_MODE
 
-#define SONANT_RECORD_FREQ              16000 // Whisper use 16kHz
-#define SONANT_RECORD_FORMAT            SND_PCM_FORMAT_FLOAT_LE
-#define SONANT_RECORD_CHANNELS          1
-#define SONANT_RECORD_SAMPLE_PER_FRAME  256
+#define SONANT_RECORD_FREQ 16000 // Whisper use 16kHz
+#define SONANT_RECORD_FORMAT SND_PCM_FORMAT_FLOAT_LE
+#define SONANT_RECORD_CHANNELS 1
+#define SONANT_RECORD_SAMPLE_PER_FRAME 256
 
 SonantImpl::SonantImpl() {
-    using std::chrono::steady_clock;
     using std::chrono::duration_cast;
     using std::chrono::seconds;
+    using std::chrono::steady_clock;
 
     // Convert 00:00:00 1/1/1970 to steady_clock::time_point
-    m_lastInputTime = steady_clock::now() + duration_cast<steady_clock::duration>(seconds(0));
+    m_lastInputTime =
+        steady_clock::now() + duration_cast<steady_clock::duration>(seconds(0));
 }
 
 SonantImpl::~SonantImpl() {
@@ -36,24 +37,29 @@ SonantImpl::~SonantImpl() {
     terminate();
 }
 
-bool SonantImpl::initialize(const std::string& modelPath, const SonantParams& params) {
+bool SonantImpl::initialize(const std::string &modelPath,
+                            const SonantParams &params) {
     // Init ASLS
     int alsaError;
     snd_pcm_hw_params_t *hwParams;
     unsigned int sample_rate = SONANT_RECORD_FREQ;
     unsigned int channels = SONANT_RECORD_CHANNELS;
 
-    if ((alsaError = snd_pcm_open(&m_alsaCapture, "default", SND_PCM_STREAM_CAPTURE, 0)) < 0 ) {
-        ERR_LOG << "Cannot open audio device: " << snd_strerror(alsaError) << LOG_ENDL;
+    if ((alsaError = snd_pcm_open(&m_alsaCapture, "default",
+                                  SND_PCM_STREAM_CAPTURE, 0)) < 0) {
+        ERR_LOG << "Cannot open audio device: " << snd_strerror(alsaError)
+                << LOG_ENDL;
         return false;
     }
 
     snd_pcm_hw_params_malloc(&hwParams);
 
     snd_pcm_hw_params_any(m_alsaCapture, hwParams);
-    snd_pcm_hw_params_set_access(m_alsaCapture, hwParams, SND_PCM_ACCESS_RW_INTERLEAVED);
+    snd_pcm_hw_params_set_access(m_alsaCapture, hwParams,
+                                 SND_PCM_ACCESS_RW_INTERLEAVED);
     snd_pcm_hw_params_set_format(m_alsaCapture, hwParams, SONANT_RECORD_FORMAT);
-    snd_pcm_hw_params_set_rate_near(m_alsaCapture, hwParams, &sample_rate, nullptr);
+    snd_pcm_hw_params_set_rate_near(m_alsaCapture, hwParams, &sample_rate,
+                                    nullptr);
     snd_pcm_hw_params_set_channels(m_alsaCapture, hwParams, channels);
     snd_pcm_hw_params(m_alsaCapture, hwParams);
 
@@ -70,17 +76,20 @@ bool SonantImpl::initialize(const std::string& modelPath, const SonantParams& pa
 #ifdef ENABLE_WHISPER
     // Init whisper
     whisper_context_params model_params = whisper_context_default_params();
-    m_whisperCtx = whisper_init_from_file_with_params(modelPath.c_str(), model_params);
+    m_whisperCtx =
+        whisper_init_from_file_with_params(modelPath.c_str(), model_params);
 
     // Config parameters for whisper
     m_whisperParams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
     m_whisperParams.n_threads = params.sonantThreadCount;
-    m_whisperParams.print_special = false; // Print special tokens like <SOT>, <EOT>, etc.
+    m_whisperParams.print_special =
+        false; // Print special tokens like <SOT>, <EOT>, etc.
     m_whisperParams.print_progress = false; // Print progress information
     m_whisperParams.single_segment = true;
 
     if (nullptr == m_whisperCtx) {
-        ERR_LOG << "Failed to init whisper context from model: " << modelPath << LOG_ENDL;
+        ERR_LOG << "Failed to init whisper context from model: " << modelPath
+                << LOG_ENDL;
         return false;
     } else {
         m_whisperModelPath = modelPath;
@@ -91,7 +100,7 @@ bool SonantImpl::initialize(const std::string& modelPath, const SonantParams& pa
     return true;
 }
 
-bool SonantImpl::requestChangeModel(const std::string& newModelPath) {
+bool SonantImpl::requestChangeModel(const std::string &newModelPath) {
     if (newModelPath == m_whisperModelPath) {
         return true;
     }
@@ -116,9 +125,7 @@ bool SonantImpl::startRecorder() {
     return true;
 }
 
-void SonantImpl::stopRecorder() {
-    m_recording.store(false);
-}
+void SonantImpl::stopRecorder() { m_recording.store(false); }
 
 void SonantImpl::terminate() {
     if (!m_terminate.load()) {
@@ -130,7 +137,8 @@ void SonantImpl::terminate() {
     }
 }
 
-void SonantImpl::setCallbackTranscriptionReady(std::function<void(std::string)> callback) {
+void SonantImpl::setCallbackTranscriptionReady(
+    std::function<void(std::string)> callback) {
     m_callbackTranscriptionReady = callback;
 }
 
@@ -166,17 +174,19 @@ void SonantImpl::doRecordAudio() {
 #endif // DEBUG_MODE
 }
 
-void SonantImpl::alsaCaptureHandle(std::vector<float>& buffer) {
-    using std::chrono::steady_clock;
+void SonantImpl::alsaCaptureHandle(std::vector<float> &buffer) {
     using std::chrono::duration_cast;
-    using std::chrono::seconds;
     using std::chrono::milliseconds;
+    using std::chrono::seconds;
+    using std::chrono::steady_clock;
     using std::this_thread::sleep_for;
 
     steady_clock::time_point now = steady_clock::now();
-    milliseconds deltaTimeSinceLastInput = duration_cast<milliseconds>(now - m_lastInputTime);
+    milliseconds deltaTimeSinceLastInput =
+        duration_cast<milliseconds>(now - m_lastInputTime);
 
-    int frames = snd_pcm_readi(m_alsaCapture, buffer.data(), SONANT_RECORD_SAMPLE_PER_FRAME);
+    int frames = snd_pcm_readi(m_alsaCapture, buffer.data(),
+                               SONANT_RECORD_SAMPLE_PER_FRAME);
     if (frames < 0) {
         frames = snd_pcm_recover(m_alsaCapture, frames, 0);
     }
@@ -186,11 +196,8 @@ void SonantImpl::alsaCaptureHandle(std::vector<float>& buffer) {
     }
 
     auto it = std::find_if(
-                  buffer.begin(),
-                  buffer.begin() + frames,
-    [this](float sample) {
-        return abs(sample) > m_recordThreshold;
-    });
+        buffer.begin(), buffer.begin() + frames,
+        [this](float sample) { return abs(sample) > m_recordThreshold; });
 
     bool has_input = (it != buffer.begin() + frames);
 
@@ -199,22 +206,23 @@ void SonantImpl::alsaCaptureHandle(std::vector<float>& buffer) {
             m_lastInputTime = now;
         }
         std::lock_guard<std::mutex> lock(m_bufferMutex);
-        m_recordBuffer.insert(
-                          m_recordBuffer.end(),
-                          buffer.begin(),
-                          buffer.begin() + frames);
+        m_recordBuffer.insert(m_recordBuffer.end(), buffer.begin(),
+                              buffer.begin() + frames);
     } else {
         processRecordBuffer();
     }
-
 }
 
 void SonantImpl::processRecordBuffer() {
-    std::unique_lock<std::mutex> record_buffer_lock(m_bufferMutex, std::defer_lock);
-    std::unique_lock<std::mutex> whisper_context_lock(m_whisperMutex, std::defer_lock);
+    std::unique_lock<std::mutex> record_buffer_lock(m_bufferMutex,
+                                                    std::defer_lock);
+    std::unique_lock<std::mutex> whisper_context_lock(m_whisperMutex,
+                                                      std::defer_lock);
 
     if (!record_buffer_lock.try_lock()) {
-        ERR_LOG << "Failed to acquire buffer lock. Process buffer operation aborted." << LOG_ENDL;
+        ERR_LOG << "Failed to acquire buffer lock. Process buffer operation "
+                   "aborted."
+                << LOG_ENDL;
         return;
     }
 
@@ -223,23 +231,21 @@ void SonantImpl::processRecordBuffer() {
     }
 
 #ifdef DEBUG_MODE
-    MSG_LOG << "Pass buffer to whisper. Buffer size = "
-            << m_recordBuffer.size()
+    MSG_LOG << "Pass buffer to whisper. Buffer size = " << m_recordBuffer.size()
             << LOG_ENDL;
 #endif // DEBUG_MODE
 
 #ifdef ENABLE_WHISPER
     do {
         if (!whisper_context_lock.try_lock()) {
-            ERR_LOG << "Failed to acquire whisper context lock. Process buffer operation aborted." << LOG_ENDL;
+            ERR_LOG << "Failed to acquire whisper context lock. Process buffer "
+                       "operation aborted."
+                    << LOG_ENDL;
             return;
         }
 
-        int result = whisper_full(
-                         m_whisperCtx,
-                         m_whisperParams,
-                         m_recordBuffer.data(),
-                         m_recordBuffer.size());
+        int result = whisper_full(m_whisperCtx, m_whisperParams,
+                                  m_recordBuffer.data(), m_recordBuffer.size());
 
         m_recordBuffer.clear();
 
@@ -264,24 +270,25 @@ void SonantImpl::processRecordBuffer() {
 #endif // DEBUG_MODE
 }
 
-bool SonantImpl::reloadModel(const std::string& newModelPath) {
+bool SonantImpl::reloadModel(const std::string &newModelPath) {
     std::unique_lock<std::mutex> whisper_context_lock(m_whisperMutex);
 
     if (!whisper_context_lock.try_lock()) {
-        ERR_LOG << "Failed to acquire whisper context lock. Reload model operation aborted." << LOG_ENDL;
+        ERR_LOG << "Failed to acquire whisper context lock. Reload model "
+                   "operation aborted."
+                << LOG_ENDL;
         return false;
     }
 
-    whisper_context* old_whisper_context = m_whisperCtx;
+    whisper_context *old_whisper_context = m_whisperCtx;
 
     whisper_context_params model_params = whisper_context_default_params();
-    m_whisperCtx = whisper_init_from_file_with_params(newModelPath.c_str(), model_params);
+    m_whisperCtx =
+        whisper_init_from_file_with_params(newModelPath.c_str(), model_params);
 
     if (nullptr == m_whisperCtx) {
         ERR_LOG << "Failed to create whisper context from new model: "
-                << newModelPath
-                << ". Fallback to old context."
-                << LOG_ENDL;
+                << newModelPath << ". Fallback to old context." << LOG_ENDL;
         m_whisperCtx = old_whisper_context;
         return false;
     }
