@@ -24,9 +24,9 @@ struct SonantParams {
      *
      * Recorder keeps record for a while after
      * last valid input (millisecond).
-     * Default: 1500ms
+     * Default: 3000ms
      */
-    uint64_t pauseRecorderDelay = 1500;
+    uint64_t pauseRecorderDelay = 3000;
 
     /**
      * @brief Whisper API thread count

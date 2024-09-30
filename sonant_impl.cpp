@@ -2,28 +2,28 @@
 #include "sonant.h"
 #include "sonant_utils.h"
 #include <algorithm>
-#include <alsa/error.h>
-#include <alsa/pcm.h>
+#include <chrono>
 #include <cmath>
 #include <iostream>
-#include <mutex>
 
-#define ENABLE_WHISPER
+#include <alsa/error.h>
+#include <alsa/pcm.h>
+
 // #define DEBUG_MODE
-
-#define SONANT_RECORD_FREQ 16000 // Whisper use 16kHz
-#define SONANT_RECORD_FORMAT SND_PCM_FORMAT_FLOAT_LE
-#define SONANT_RECORD_CHANNELS 1
-#define SONANT_RECORD_SAMPLE_PER_FRAME 256
+#define ENABLE_WHISPER
+#define BUFFER_REVERSE_SIZE  102400
 
 SonantImpl::SonantImpl() {
     using std::chrono::duration_cast;
     using std::chrono::seconds;
     using std::chrono::steady_clock;
 
-    // Convert 00:00:00 1/1/1970 to steady_clock::time_point
+    // Reserved memory for record buffer
+    m_recordBuffer.reserve(BUFFER_REVERSE_SIZE);
+
+    // Just set init time value at 100s in the past
     m_lastInputTime =
-        steady_clock::now() + duration_cast<steady_clock::duration>(seconds(0));
+        steady_clock::now() - std::chrono::seconds(100);
 }
 
 SonantImpl::~SonantImpl() {
@@ -82,10 +82,9 @@ bool SonantImpl::initialize(const std::string &modelPath,
     // Config parameters for whisper
     m_whisperParams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
     m_whisperParams.n_threads = params.sonantThreadCount;
-    m_whisperParams.print_special =
-        false; // Print special tokens like <SOT>, <EOT>, etc.
-    m_whisperParams.print_progress = false; // Print progress information
-    m_whisperParams.single_segment = true;
+    m_whisperParams.print_special = false; // Don't print special tokens like <SOT>, <EOT>, etc.
+    m_whisperParams.print_progress = false; // Don't print progress information.
+    m_whisperParams.single_segment = true;  // Return transcript as one string.
 
     if (nullptr == m_whisperCtx) {
         ERR_LOG << "Failed to init whisper context from model: " << modelPath
@@ -125,7 +124,9 @@ bool SonantImpl::startRecorder() {
     return true;
 }
 
-void SonantImpl::stopRecorder() { m_recording.store(false); }
+void SonantImpl::stopRecorder() {
+    m_recording.store(false);
+}
 
 void SonantImpl::terminate() {
     if (!m_terminate.load()) {
@@ -146,8 +147,8 @@ void SonantImpl::doRecordAudio() {
     using std::chrono::milliseconds;
     using std::this_thread::sleep_for;
 
-    // Create tmp buffer for recording
-    std::vector<float> tmp_record_buffer(SONANT_RECORD_SAMPLE_PER_FRAME);
+    // Create a buffer for recording
+    std::array<float, SONANT_RECORD_SAMPLE_PER_FRAME> recorded_frame;
     while (true) {
         if (!m_alsaInitOk) {
             UNREACHABLE();
@@ -166,7 +167,7 @@ void SonantImpl::doRecordAudio() {
             continue;
         }
 
-        alsaCaptureHandle(tmp_record_buffer);
+        alsaCaptureHandle(recorded_frame);
     }
 
 #ifdef DEBUG_MODE
@@ -174,7 +175,7 @@ void SonantImpl::doRecordAudio() {
 #endif // DEBUG_MODE
 }
 
-void SonantImpl::alsaCaptureHandle(std::vector<float> &buffer) {
+void SonantImpl::alsaCaptureHandle(std::array<float, SONANT_RECORD_SAMPLE_PER_FRAME>& frame) {
     using std::chrono::duration_cast;
     using std::chrono::milliseconds;
     using std::chrono::seconds;
@@ -185,29 +186,37 @@ void SonantImpl::alsaCaptureHandle(std::vector<float> &buffer) {
     milliseconds deltaTimeSinceLastInput =
         duration_cast<milliseconds>(now - m_lastInputTime);
 
-    int frames = snd_pcm_readi(m_alsaCapture, buffer.data(),
-                               SONANT_RECORD_SAMPLE_PER_FRAME);
-    if (frames < 0) {
-        frames = snd_pcm_recover(m_alsaCapture, frames, 0);
+    // Clear data before record
+    frame.fill(0.0f);
+
+    // Read data from source and save to buffer
+    int byte_len = snd_pcm_readi(m_alsaCapture, frame.data(),
+                                 SONANT_RECORD_SAMPLE_PER_FRAME);
+    if (byte_len < 0) {
+        byte_len = snd_pcm_recover(m_alsaCapture, byte_len, 0);
     }
-    if (frames < 0) {
-        ERR_LOG << "Failed to read PCM data: " << strerror(frames) << LOG_ENDL;
+    if (byte_len < 0) {
+        ERR_LOG << "Failed to read PCM data: " << strerror(byte_len) << LOG_ENDL;
         return;
     }
 
+    // Check if buffer have item above
     auto it = std::find_if(
-        buffer.begin(), buffer.begin() + frames,
-        [this](float sample) { return abs(sample) > m_recordThreshold; });
+                  frame.begin(), frame.begin() + byte_len,
+    [this](float sample) {
+        return abs(sample) > m_recordThreshold;
+    });
 
-    bool has_input = (it != buffer.begin() + frames);
+    bool has_input = (it != frame.begin() + byte_len);
 
     if (has_input || deltaTimeSinceLastInput < m_stopRecordDelay) {
         if (has_input) {
             m_lastInputTime = now;
         }
+
         std::lock_guard<std::mutex> lock(m_bufferMutex);
-        m_recordBuffer.insert(m_recordBuffer.end(), buffer.begin(),
-                              buffer.begin() + frames);
+        m_recordBuffer.insert(m_recordBuffer.end(), frame.begin(),
+                              frame.begin() + byte_len);
     } else {
         processRecordBuffer();
     }
@@ -215,18 +224,24 @@ void SonantImpl::alsaCaptureHandle(std::vector<float> &buffer) {
 
 void SonantImpl::processRecordBuffer() {
     std::unique_lock<std::mutex> record_buffer_lock(m_bufferMutex,
-                                                    std::defer_lock);
+            std::defer_lock);
     std::unique_lock<std::mutex> whisper_context_lock(m_whisperMutex,
-                                                      std::defer_lock);
+            std::defer_lock);
 
     if (!record_buffer_lock.try_lock()) {
         ERR_LOG << "Failed to acquire buffer lock. Process buffer operation "
-                   "aborted."
+                "aborted."
                 << LOG_ENDL;
         return;
     }
 
     if (m_recordBuffer.empty()) {
+        return;
+    }
+
+    if (!m_callbackTranscriptionReady) {
+        // callback not set, just clear the buffer and listen to new data
+        m_recordBuffer.clear();
         return;
     }
 
@@ -239,7 +254,7 @@ void SonantImpl::processRecordBuffer() {
     do {
         if (!whisper_context_lock.try_lock()) {
             ERR_LOG << "Failed to acquire whisper context lock. Process buffer "
-                       "operation aborted."
+                    "operation aborted."
                     << LOG_ENDL;
             return;
         }
@@ -260,6 +275,7 @@ void SonantImpl::processRecordBuffer() {
             transcript = whisper_full_get_segment_text(m_whisperCtx, 0);
         }
 
+        // Checked functor above already
         m_callbackTranscriptionReady(transcript);
     } while (false);
 
@@ -275,7 +291,7 @@ bool SonantImpl::reloadModel(const std::string &newModelPath) {
 
     if (!whisper_context_lock.try_lock()) {
         ERR_LOG << "Failed to acquire whisper context lock. Reload model "
-                   "operation aborted."
+                "operation aborted."
                 << LOG_ENDL;
         return false;
     }

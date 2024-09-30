@@ -1,6 +1,7 @@
 #ifndef SONANT_IMPL_H
 #define SONANT_IMPL_H
 
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <functional>
@@ -11,6 +12,11 @@
 
 #include <alsa/asoundlib.h>
 #include <whisper.h>
+
+#define SONANT_RECORD_FREQ 16000 // Whisper use 16kHz
+#define SONANT_RECORD_FORMAT SND_PCM_FORMAT_FLOAT_LE
+#define SONANT_RECORD_CHANNELS 1
+#define SONANT_RECORD_SAMPLE_PER_FRAME 256
 
 struct SonantParams;
 class SonantImpl {
@@ -25,20 +31,19 @@ public:
     void stopRecorder();
     void terminate();
 
-    void
-    setCallbackTranscriptionReady(std::function<void(std::string)> callback);
+    void setCallbackTranscriptionReady(std::function<void(std::string)> callback);
 
 private:
     void doRecordAudio();
-    void alsaCaptureHandle(std::vector<float> &buffer);
+    void alsaCaptureHandle(std::array<float, SONANT_RECORD_SAMPLE_PER_FRAME> &buffer);
 
     void processRecordBuffer();
     bool reloadModel(const std::string &newModelPath);
 
 private:
     // ---------------------------- Record thread ----------------------------
-    std::atomic<bool> m_recording{false};
-    std::atomic<bool> m_terminate{false};
+    std::atomic<bool> m_recording { false };
+    std::atomic<bool> m_terminate { false };
 
     float m_recordThreshold = 0.25; // Default: 25%
     std::vector<float> m_recordBuffer;
@@ -50,8 +55,7 @@ private:
     snd_pcm_t *m_alsaCapture;
 
     std::chrono::steady_clock::time_point m_lastInputTime;
-    std::chrono::milliseconds m_stopRecordDelay =
-        std::chrono::milliseconds(1500);
+    std::chrono::milliseconds m_stopRecordDelay = std::chrono::milliseconds(3000);
 
     // ---------------------------- Whisper ----------------------------
     bool m_whisperInitOk = false;
