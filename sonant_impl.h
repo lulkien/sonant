@@ -1,5 +1,6 @@
-#ifndef SONANT_IMPL_H
-#define SONANT_IMPL_H
+#pragma once
+
+#include "sonant.h"
 
 #include <array>
 #include <atomic>
@@ -18,7 +19,6 @@
 #define SONANT_RECORD_CHANNELS 1
 #define SONANT_RECORD_SAMPLE_PER_FRAME 256
 
-struct SonantParams;
 class SonantImpl {
 public:
     SonantImpl();
@@ -31,7 +31,7 @@ public:
     void stopRecorder();
     void terminate();
 
-    void setCallbackTranscriptionReady(std::function<void(std::string)> callback);
+    void setCallbackTranscriptionReady(CallbackFuncType callback);
 
 private:
     void doRecordAudio();
@@ -42,8 +42,8 @@ private:
 
 private:
     // ---------------------------- Record thread ----------------------------
-    std::atomic<bool> m_recording { false };
-    std::atomic<bool> m_terminate { false };
+    std::atomic<bool> m_recording{false};
+    std::atomic<bool> m_terminate{false};
 
     float m_recordThreshold = 0.25; // Default: 25%
     std::vector<float> m_recordBuffer;
@@ -64,8 +64,5 @@ private:
     std::string m_whisperModelPath;
     std::mutex m_whisperMutex;
 
-    std::function<void(std::string)> m_callbackTranscriptionReady;
+    CallbackFuncType m_callbackTranscriptionReady;
 };
-
-#endif // !SONANT_IMPL_H
-#define SONANT_IMPL_H

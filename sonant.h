@@ -1,9 +1,10 @@
-#ifndef SONANT_H
-#define SONANT_H
+#pragma once
 
 #include <functional>
 #include <memory>
 #include <string>
+
+using CallbackFuncType = std::function<void(std::string)>;
 
 /**
  * @brief Sonant config parameters
@@ -71,8 +72,7 @@ public:
      *
      * @return bool Result of initialize process.
      */
-    bool initialize(const std::string &initModelPath,
-                    const SonantParams &params);
+    bool initialize(const std::string &initModelPath, const SonantParams &params);
 
     /**
      * @brief Change Whisper model path
@@ -124,10 +124,8 @@ public:
      *
      * @param callback A functor with type void(std::string)
      */
-    void setTranscriptionCallback(std::function<void(std::string)> callback);
+    void setTranscriptionCallback(CallbackFuncType callback);
 
 private:
     std::unique_ptr<SonantImpl> pImpl;
 };
-
-#endif // !SONANT_H
